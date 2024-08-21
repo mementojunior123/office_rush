@@ -239,7 +239,7 @@ class Game:
         if self.timer_sprite.text != rounded_time_str:
             self.timer_sprite.text = rounded_time_str
         
-        if real_time > 30: self.game_end_transition()
+        if real_time > 300: self.game_end_transition()
             
         self.day1_letter_logic()
         self.day1_phone_logic()

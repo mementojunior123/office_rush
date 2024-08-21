@@ -18,7 +18,7 @@ from random import shuffle
 
 core = core_object
 core.init(window)
-core.FPS = 600
+core.FPS = 120
 
 pygame.display.set_caption('Office Rush')
 
