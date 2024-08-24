@@ -415,7 +415,7 @@ class CallerInfo:
     @classmethod
     def get_call(cls, name : str) -> dict[str, Any]|None:
         for call in cls.all_calls:
-            if call.get("CallName", None) == "Name":
+            if call.get("CallName", None) == name:
                 return call
         return None
 
