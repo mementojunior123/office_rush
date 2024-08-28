@@ -4,9 +4,11 @@ import pygame
 import utils.interpolation as interpolation
 from utils.my_timer import Timer
 from typing import Callable, Any
+from time import perf_counter
 
-def new_tween(target : object, info : 'TweenInfo', goal : dict, use_compatibilty_lerp = True, update_manually = False, play_now = True):
-    new_track = TweenTrack(target, info, goal, use_compatibilty_lerp)
+def new_tween(target : object, info : 'TweenInfo', goal : dict, use_compatibilty_lerp = True, update_manually = False, play_now = True,
+              time_source : Callable[[], float]|None = None, time_factor : float = 1):
+    new_track = TweenTrack(target, info, goal, use_compatibilty_lerp, time_source, time_factor)
     if not update_manually:
         TweenTrack.elements.append(new_track)
     if play_now:
@@ -15,7 +17,8 @@ def new_tween(target : object, info : 'TweenInfo', goal : dict, use_compatibilty
 
 class TweenTrack:
     elements : list['TweenTrack'] = []
-    def __init__(self, target : object, info : 'TweenInfo', goal : dict[str, Any], use_compat_lerp = True) -> None:
+    def __init__(self, target : object, info : 'TweenInfo', goal : dict[str, Any], use_compat_lerp = True,
+              time_source : Callable[[], float]|None = None, time_factor : float = 1) -> None:
         self.target = target
         self.info = info
         self.goal = goal
@@ -25,6 +28,9 @@ class TweenTrack:
         self.is_playing = False
         self.has_finished = False
         self._can_play = True
+        
+        self.time_source : Callable[[], float]|None = time_source
+        self.time_factor : float = time_factor
     
     @staticmethod
     def stall_tween(time : float):
@@ -67,7 +73,7 @@ class TweenTrack:
         if not self._can_play: return
         for attr in self.goal:
             self.start[attr] = self.get_chained_attribute(self.target, attr)
-        self.timer = Timer(self.info.time)
+        self.timer = Timer(self.info.time, self.time_source, self.time_factor)
         self.has_finished = False
         self.is_playing = True
     
@@ -136,7 +142,8 @@ class TweenInfo:
 
 class TweenChain:
     elements : list['TweenChain'] = []
-    def __init__(self, target : object, steps : list[tuple[TweenInfo, dict[str, Any]]], use_compat_lerp = True) -> None:
+    def __init__(self, target : object, steps : list[tuple[TweenInfo, dict[str, Any]]], use_compat_lerp = True,
+              time_source : Callable[[], float]|None = None, time_factor : float = 1) -> None:
         self.target = target
         self.current_step : int|None = None
         self.current_track : TweenTrack = None
@@ -146,7 +153,9 @@ class TweenChain:
         self.is_playing : bool = False
         self.has_finished : bool = False
         self.step_count = len(steps)
-    
+
+        self.time_source : Callable[[], float] = time_source
+        self.time_factor : float = time_factor
     
     def play(self):
         self.current_step = 0
@@ -173,7 +182,7 @@ class TweenChain:
 
     def get_track_from_step(self, step : int):
         info1, goal1 = self.steps[step]
-        return TweenTrack(self.target, info1, goal1, self.use_compatibilty_lerp)
+        return TweenTrack(self.target, info1, goal1, self.use_compatibilty_lerp, self.time_source, self.time_factor)
         
     def update(self):
         if not self.current_track: return

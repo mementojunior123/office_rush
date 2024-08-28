@@ -94,8 +94,9 @@ def start_game(event : pygame.Event):
     
     
 def detect_game_over(event : pygame.Event):
-    if core.game.day_timer.get_time() < 3.5: return
-    if core.game.game_state == 'Transition': return
+    if core.game.game_timer.get_time() < 3.5: return
+    if core.game.state == 'Transition': return
+    if core.game.state == core.game.STATES.paused: return
     if event.type == pygame.KEYDOWN: 
         if event.key == pygame.K_ESCAPE: 
             end_game(None, False)
@@ -149,7 +150,7 @@ debug_sprite = TextSprite(pygame.Vector2(15, 200), 'midright', 0, '', 'debug_spr
                         text_settings=(font_40, 'White', False), text_stroke_settings=('Black', 2),
                         text_alingment=(9999, 5), colorkey=(255, 0,0), zindex=999)
 core.frame_counter = 0
-cycle_timer = Timer(0.1)
+cycle_timer = Timer(0.1, core_object.global_timer.get_time)
 async def main():
     while 1:
         core.update_dt(60)
@@ -164,9 +165,10 @@ async def main():
         else:
         
             window.fill((94,129,162))
-            Sprite.update_all_sprites(core.dt)
-            Sprite.update_all_registered_classes(core.dt)
-            core.game.main_logic(core.dt)
+            if core.game.state != core.game.STATES.paused:
+                Sprite.update_all_sprites(core.dt)
+                Sprite.update_all_registered_classes(core.dt)
+                core.game.main_logic(core.dt)
             Sprite.draw_all_sprites(window)
             core.main_ui.update()
             core.main_ui.render(window)

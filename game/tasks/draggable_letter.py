@@ -405,7 +405,7 @@ class LetterPile(Sprite):
 
 
     def new_letter_on_click(self, press_pos : tuple, finger_id : int):
-        if core_object.game.game_state == core_object.game.STATES.transition: return
+        if core_object.game.state == core_object.game.STATES.transition: return
         if len(self.stack) <= 0:
             return
             info = None
@@ -559,7 +559,7 @@ class LetterFolder(Sprite):
 
     def collide_letter(self, other : DraggableLetter) -> bool:
         if not self.rect.colliderect(other.rect): return False
-        if core_object.game.game_state == core_object.game.STATES.transition: return False
+        if core_object.game.state == core_object.game.STATES.transition: return False
         left_peek : float = self.rect.left + abs(other.velocity.x) if sign(other.velocity.x) == -1 else self.rect.left
         right_peek : float = self.rect.right + abs(other.velocity.x) if sign(other.velocity.x) == 1 else self.rect.right
         if not (left_peek <= other.position.x <= right_peek):
@@ -611,7 +611,7 @@ class LetterFolder(Sprite):
         
     
     def take_letter(self, letter : DraggableLetter):
-        if core_object.game.game_state == core_object.game.STATES.transition: return
+        if core_object.game.state == core_object.game.STATES.transition: return
         DraggableLetter.to_limbo(letter)
         self.sliding_letters.append(letter)
         letter.slide_timer = Timer(0.6)

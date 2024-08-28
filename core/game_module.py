@@ -18,6 +18,7 @@ class GameStates:
     def __init__(self) -> None:
         self.transition = 'Transition'
         self.normal = 'Normal'
+        self.paused = 'Paused'
 
 
 class Game:
@@ -28,8 +29,9 @@ class Game:
     
     def __init__(self) -> None:
         self.active : bool = False
-        self.game_state : None|str = None
-        self.day_timer : Timer = None
+        self.state : None|str = None
+        self.prev_state : None|str = None
+        self.game_timer : Timer = None
         self.day : int = None
         self.game_data : dict = {}
         self.main_textbox : TextBox|None = None
@@ -64,7 +66,7 @@ class Game:
     def start_day(self, day : int):
         self.active= True
         self.day = day
-        self.game_state = self.STATES.normal
+        self.state = self.STATES.normal
         self.doing_tutorial : bool|None = True
         self.tutorial_end_timestamp = None
         self.game_data = {}
@@ -99,8 +101,9 @@ class Game:
         self.letter_history = []
         self.call_history = []
 
+        self.game_timer = Timer(0)
+
         if day == 1:
-            self.day_timer = Timer(0)
             pile = LetterPile.spawn(pygame.Vector2(825, 405))
             folder1 = LetterFolder.spawn(pygame.Vector2(150, -200), SortingCriteria.is_category, {'target_type' : 'Spam'}, 
                             'Spam', (Game.font_40, 'Black', False))
@@ -134,7 +137,8 @@ class Game:
         DraggableLetter = game.tasks.draggable_letter.DraggableLetter
         
         #game module connections
-        core_object.event_manager.bind(pygame.MOUSEBUTTONDOWN, self.handle_mouse_event_tutorial)
+        core_object.event_manager.bind(pygame.MOUSEBUTTONDOWN, self.handle_mouse_event)
+        core_object.event_manager.bind(pygame.KEYDOWN, self.handle_key_event)
 
         #letter task connections
         core_object.event_manager.bind(Sprite.SPRITE_CLICKED, DraggableLetter.handle_mouse_event)
@@ -161,7 +165,8 @@ class Game:
         DraggableLetter = game.tasks.draggable_letter.DraggableLetter
 
         #game module connections
-        core_object.event_manager.unbind(pygame.MOUSEBUTTONDOWN, self.handle_mouse_event_tutorial)
+        core_object.event_manager.unbind(pygame.MOUSEBUTTONDOWN, self.handle_mouse_event)
+        core_object.event_manager.unbind(pygame.KEYDOWN, self.handle_key_event)
 
         #letter task connections
         core_object.event_manager.unbind(Sprite.SPRITE_CLICKED, DraggableLetter.handle_mouse_event)
@@ -187,10 +192,10 @@ class Game:
         overlay = BrightnessOverlay(0, pygame.Rect(0,0, *core_object.main_display.get_size()), 0, 'overlay', zindex=99)
 
         overlay.brightness = -255
-        core_object.main_ui.add_temp(overlay, delay + fadein_lentgh + 0.5)
+        core_object.main_ui.add_temp(overlay, delay + fadein_lentgh + 0.5, time_source=self.game_timer.get_time)
         TI = TweenModule.TweenInfo
         tween_chain = TweenModule.TweenChain(overlay, [(TweenModule.TweenInfo(interpolation.linear, delay), {}), 
-                                                    (TI(interpolation.linear, fadein_lentgh), {'brightness' : 0})])
+                                                    (TI(interpolation.linear, fadein_lentgh), {'brightness' : 0})], time_source=self.game_timer.get_time)
         tween_chain.has_finished = False
         TweenModule.TweenChain.elements.append(tween_chain)
         tween_chain.play()
@@ -205,34 +210,58 @@ class Game:
         TI = TweenModule.TweenInfo
         chain = TweenModule.TweenChain(day_sprite, [(TI(interpolation.quad_ease_out, 0.5), {'position.y' : centery, 'rect.centery' : centery}),
                                             (TI(lambda t:t, 1), {'position.y' : centery, 'rect.centery' : centery}),
-                                            (TI(interpolation.quad_ease_in, 1.5), {'position.y' : finaly, 'rect.centery' : finaly})])
+                                            (TI(interpolation.quad_ease_in, 1.5), {'position.y' : finaly, 'rect.centery' : finaly})], time_source=self.game_timer.get_time)
         TweenModule.TweenChain.elements.append(chain)
         chain.play()
-        core_object.main_ui.add_temp(day_sprite, 3)
+        core_object.main_ui.add_temp(day_sprite, 3, time_source=self.game_timer.get_time)
  
     
 
     def main_logic(self, delta : float):
         LetterInfo = game.tasks.draggable_letter.LetterInfo
         CallerInfo = game.tasks.phone.CallerInfo
-        current_time = self.day_timer.get_time()
+        current_time = self.game_timer.get_time()
         if self.day == 1:
-            if self.game_state == self.STATES.transition: return
+            if self.state == self.STATES.transition: return
             if self.tutorial_end_timestamp:
                 self.day1_game_logic()
             else:
                 self.day1_tutorial_logic()
     
+    def pause(self):
+        if not self.active: return
+        if self.state == self.STATES.paused: return
+        self.game_timer.pause()
+        window_size = core_object.main_display.get_size()
+        pause_ui1 = BrightnessOverlay(-60, pygame.Rect(0,0, *window_size), 0, 'pause_overlay', zindex=999)
+        pause_ui2 = TextSprite(pygame.Vector2(window_size[0] // 2, window_size[1] // 2), 'center', 0, 'Paused', 'pause_text', None, None, 1000,
+                               (self.font_70, 'White', False), ('Black', 2), colorkey=(0, 255, 0))
+        core_object.main_ui.add(pause_ui1)
+        core_object.main_ui.add(pause_ui2)
+        self.prev_state = self.state
+        self.state = self.STATES.paused
+    
+    def unpause(self):
+        if not self.active: return
+        if self.state != self.STATES.paused: return
+        self.game_timer.unpause()
+        pause_ui1 = core_object.main_ui.get_sprite('pause_overlay')
+        pause_ui2 = core_object.main_ui.get_sprite('pause_text')
+        if pause_ui1: core_object.main_ui.remove(pause_ui1)
+        if pause_ui2: core_object.main_ui.remove(pause_ui2)
+        self.state = self.prev_state
+        self.prev_state = None
+    
     def day1_tutorial_logic(self):
         curr_step = self.game_data['current_tutorial_step']
-        current_time = self.day_timer.get_time()
+        current_time = self.game_timer.get_time()
         if curr_step < 5:
             if current_time + self.tutorial_skip_time > self.tutorial_timings[curr_step + 1]:
                 self.game_data['current_tutorial_step'] += 1
                 self.day1_tutorial_step(self.game_data['current_tutorial_step'])
     
     def day1_game_logic(self):
-        current_time = self.day_timer.get_time()
+        current_time = self.game_timer.get_time()
         real_time = current_time - self.tutorial_end_timestamp
 
         rounded_time_str = f'Time : {floor(real_time)}'
@@ -245,7 +274,7 @@ class Game:
         self.day1_phone_logic()
     
     def day1_letter_logic(self,):
-        current_time = self.day_timer.get_time()
+        current_time = self.game_timer.get_time()
         real_time = current_time - self.tutorial_end_timestamp
         LetterInfo = game.tasks.draggable_letter.LetterInfo
         if (real_time + 4) // 5 > self.game_data['letters_spawned']:
@@ -306,7 +335,8 @@ class Game:
             self.main_textbox.text = 'Welcome to the office! Here you will be doing a variety of tasks. For today, you will be sorting letters.'
             self.main_textbox.visible = True
             text_len = len(self.main_textbox.text)
-            new_tween = TweenModule.new_tween(self.main_textbox, TI(interpolation.linear, 0.05 * text_len), {'text_progress' : 1})
+            new_tween = TweenModule.new_tween(self.main_textbox, TI(interpolation.linear, 0.05 * text_len), {'text_progress' : 1}, 
+                                              time_source=self.game_timer.get_time)
             self.game_data['current_textbox_tween'] = new_tween
         elif step == 1:
             self.main_textbox.rect.midtop = (470, 15)
@@ -314,16 +344,20 @@ class Game:
             self.main_textbox.text_progress = 0
             self.main_textbox.text = "The process is quite simple for now. Any spam related letter goes in the 'spam' folder."
             text_len = len(self.main_textbox.text)
-            new_tween = TweenModule.new_tween(self.main_textbox, TI(interpolation.linear, 0.05 * text_len), {'text_progress' : 1})
-            folder_tween = TweenModule.new_tween(folder1, TI(interpolation.smoothstep, 1), {'rect.centery' : 450, 'position.y' : 450})
+            new_tween = TweenModule.new_tween(self.main_textbox, TI(interpolation.linear, 0.05 * text_len), {'text_progress' : 1}, 
+                                              time_source=self.game_timer.get_time)
+            folder_tween = TweenModule.new_tween(folder1, TI(interpolation.smoothstep, 1), {'rect.centery' : 450, 'position.y' : 450}, 
+                                              time_source=self.game_timer.get_time)
             self.game_data['current_textbox_tween'] = new_tween
             self.game_data['other_tweens']['folder1'] = folder_tween
         elif step == 2:
             self.main_textbox.text_progress = 0
             self.main_textbox.text = '''Every other letter goes in the 'other' folder. Make sure those letters dont pile up, else you might get a penalty.'''
             text_len = len(self.main_textbox.text)
-            new_tween = TweenModule.new_tween(self.main_textbox, TI(interpolation.linear, 0.05 * text_len), {'text_progress' : 1})
-            folder_tween = TweenModule.new_tween(folder2, TI(interpolation.quad_ease_out, 1), {'rect.centery' : 450, 'position.y' : 450})
+            new_tween = TweenModule.new_tween(self.main_textbox, TI(interpolation.linear, 0.05 * text_len), {'text_progress' : 1}, 
+                                              time_source=self.game_timer.get_time)
+            folder_tween = TweenModule.new_tween(folder2, TI(interpolation.quad_ease_out, 1), {'rect.centery' : 450, 'position.y' : 450}, 
+                                              time_source=self.game_timer.get_time)
             self.game_data['other_tweens']['folder1'] = None
             self.game_data['other_tweens']['folder2'] = folder_tween
             self.game_data['current_textbox_tween'] = new_tween
@@ -331,8 +365,10 @@ class Game:
             self.main_textbox.text_progress = 0
             self.main_textbox.text = '''One more thing. During your time here, you're going to have to awnser to phone a few times. Today, we want atleast 4 calls awnsered or you are getting a penalty.'''
             text_len = len(self.main_textbox.text)
-            new_tween = TweenModule.new_tween(self.main_textbox, TI(interpolation.linear, 0.05 * text_len), {'text_progress' : 1})
-            telephone_tween = TweenModule.new_tween(telephone, TI(interpolation.quad_ease_out, 1), {'rect.centery' : 115, 'position.y' : 115})
+            new_tween = TweenModule.new_tween(self.main_textbox, TI(interpolation.linear, 0.05 * text_len), {'text_progress' : 1}, 
+                                              time_source=self.game_timer.get_time)
+            telephone_tween = TweenModule.new_tween(telephone, TI(interpolation.quad_ease_out, 1), {'rect.centery' : 115, 'position.y' : 115}, 
+                                              time_source=self.game_timer.get_time)
             self.game_data['other_tweens']['folder2'] = None
             self.game_data['other_tweens']['telephone'] = telephone_tween
             self.game_data['current_textbox_tween'] = new_tween
@@ -342,7 +378,8 @@ class Game:
             self.main_textbox.text_progress = 0
             self.main_textbox.text = '''Good luck!'''
             text_len = len(self.main_textbox.text)
-            new_tween = TweenModule.new_tween(self.main_textbox, TI(interpolation.linear, 0.05 * text_len), {'text_progress' : 1})
+            new_tween = TweenModule.new_tween(self.main_textbox, TI(interpolation.linear, 0.05 * text_len), {'text_progress' : 1}, 
+                                              time_source=self.game_timer.get_time)
             self.game_data['current_textbox_tween'] = new_tween
             self.game_data['other_tweens']['telephone'] = None
 
@@ -361,7 +398,7 @@ class Game:
         LetterFolder = game.tasks.draggable_letter.LetterFolder
         DraggableLetter = game.tasks.draggable_letter.DraggableLetter
         if event.type == LetterFolder.LETTER_SORTED:
-            if self.game_state == self.STATES.transition: return
+            if self.state == self.STATES.transition: return
             folder : game.tasks.draggable_letter.LetterFolder = event.folder
             letter : game.tasks.draggable_letter.DraggableLetter = event.letter
             result = folder.sorting_criteria(folder, letter)
@@ -376,7 +413,7 @@ class Game:
             self.letter_history.append(letter.data)
 
         elif event.type == game.tasks.phone.CallerInfo.CALL_ENDED:
-            if self.game_state == self.STATES.transition: return
+            if self.state == self.STATES.transition: return
             success : bool = event.success
             call : game.tasks.phone.CallerInfo = event.call
             telephone : game.tasks.phone.Telephone = event.telephone
@@ -396,6 +433,14 @@ class Game:
             
             self.call_history.append(call)
 
+    def handle_key_event(self, event : pygame.Event):
+        if event.type == pygame.KEYDOWN:
+            if event.key in [pygame.K_p, pygame.K_ESCAPE, pygame.K_SPACE]:
+                if self.state == self.STATES.paused:
+                    self.unpause()
+                elif self.state == self.STATES.normal:
+                    self.pause()
+
     def show_letter_sort_error(self):
         error_sprite = TextSprite(pygame.Vector2(core_object.main_display.get_width() // 2, 90), 'midtop', 0, 'Wrong folder!', 
                                       text_settings=(core_object.menu.font_50, 'Red', False), text_stroke_settings=('Black', 2), colorkey=(0,255,0))
@@ -404,7 +449,7 @@ class Game:
         error_sprite.position = pygame.Vector2(error_sprite.rect.center)
         temp_y = error_sprite.rect.centery
         core_object.bg_manager.play_sfx(game.tasks.draggable_letter.LetterFolder.error_sfx, 0.15)
-        core_object.main_ui.add_temp(error_sprite, 2)
+        core_object.main_ui.add_temp(error_sprite, 2, time_source=self.game_timer.get_time)
         TInfo = TweenModule.TweenInfo
         goal1 = {'rect.centery' : 50, 'position.y' : 50}
         info1 = TInfo(interpolation.quad_ease_out, 0.3)
@@ -412,8 +457,9 @@ class Game:
         info2 = TInfo(interpolation.quad_ease_in, 0.4)
         
         on_screen_time = 1
-        TweenModule.new_tween(error_sprite, info1, goal1)
-        core_object.task_scheduler.schedule_task(0.4 + on_screen_time, TweenModule.new_tween, error_sprite, info2, goal2)
+        TweenModule.new_tween(error_sprite, info1, goal1, time_source=self.game_timer)
+        core_object.task_scheduler.schedule_task(0.4 + on_screen_time, TweenModule.new_tween, error_sprite, info2, goal2, 
+                                                 True, False, True, self.game_timer.get_time)
     
     def show_phone_call_error(self):
         error_sprite = TextSprite(pygame.Vector2(core_object.main_display.get_width() // 2, 90), 'midtop', 0, 'Call failed!', 
@@ -423,7 +469,7 @@ class Game:
         error_sprite.position = pygame.Vector2(error_sprite.rect.center)
         temp_y = error_sprite.rect.centery
         core_object.bg_manager.play_sfx(game.tasks.draggable_letter.LetterFolder.error_sfx, 0.15)
-        core_object.main_ui.add_temp(error_sprite, 2)
+        core_object.main_ui.add_temp(error_sprite, 2, time_source=self.game_timer.get_time)
         TInfo = TweenModule.TweenInfo
         goal1 = {'rect.centery' : 50, 'position.y' : 50}
         info1 = TInfo(interpolation.quad_ease_out, 0.3)
@@ -431,12 +477,15 @@ class Game:
         info2 = TInfo(interpolation.quad_ease_in, 0.4)
         
         on_screen_time = 1
-        TweenModule.new_tween(error_sprite, info1, goal1)
-        core_object.task_scheduler.schedule_task(0.4 + on_screen_time, TweenModule.new_tween, error_sprite, info2, goal2)
+        TweenModule.new_tween(error_sprite, info1, goal1, time_source=self.game_timer.get_time)
+        core_object.task_scheduler.schedule_task(0.4 + on_screen_time, TweenModule.new_tween, error_sprite, info2, goal2, 
+                                                 True, False, True, self.game_timer.get_time)
 
-    def handle_mouse_event_tutorial(self, event : pygame.Event):
+    def handle_mouse_event(self, event : pygame.Event):
         if event.type != pygame.MOUSEBUTTONDOWN: return
         if not self.active : return
+        if self.state == self.STATES.paused:
+            self.unpause()
         press_pos : tuple = event.pos
         if self.day == 1:
             if not self.main_textbox : return
@@ -454,7 +503,7 @@ class Game:
                 self.game_data['current_tutorial_step'] += 1
                 self.day1_tutorial_step(self.game_data['current_tutorial_step'])
                 normal_timinig : float = self.tutorial_timings[self.game_data['current_tutorial_step']]
-                current_time : float = self.day_timer.get_time()
+                current_time : float = self.game_timer.get_time()
                 self.tutorial_skip_time = normal_timinig - current_time
 
     def get_random_call(self) -> dict[str, Any]:
@@ -471,9 +520,9 @@ class Game:
         self.main_textbox.visible = state
     
     def set_new_tutorial_end_timestamp(self):
-        if not self.day_timer: return
+        if not self.game_timer: return
         if self.tutorial_end_timestamp : return
-        self.tutorial_end_timestamp = self.day_timer.get_time()
+        self.tutorial_end_timestamp = self.game_timer.get_time()
     
   
     def get_result(self) -> dict:
@@ -516,7 +565,7 @@ class Game:
         return result
      
     def game_end_transition(self, failed : bool = False):
-        self.game_state = self.STATES.transition
+        self.state = self.STATES.transition
         back_arrow = core_object.main_ui.get_sprite('back_arrow')
         if back_arrow:
             core_object.main_ui.remove(back_arrow)
@@ -537,11 +586,11 @@ class Game:
 
         centery = core_object.main_display.get_height() // 2
         TweenModule.new_tween(new_textsprite, TweenModule.TweenInfo(interpolation.smoothstep, 1), 
-                              {'rect.centery' : centery, 'position.y' : centery})
+                              {'rect.centery' : centery, 'position.y' : centery}, time_source=self.game_timer.get_time)
         
         overlay = BrightnessOverlay(0, pygame.Rect(0, 0, *core_object.main_display.get_size()), 0, 'game_end_overlay', zindex=99)
         core_object.main_ui.add(overlay)
-        TweenModule.new_tween(overlay, TweenModule.TweenInfo(lambda t : t, 1), {'brightness' : -100})
+        TweenModule.new_tween(overlay, TweenModule.TweenInfo(lambda t : t, 1), {'brightness' : -100}, time_source=self.game_timer.get_time)
 
         core_object.task_scheduler.schedule_task(3.5, self.fire_gameover_event, True)
     
@@ -552,8 +601,11 @@ class Game:
     def cleanup(self):
         self.day = None
         self.active = False
-        self.day_timer = None
-        self.game_state = None
+        self.game_timer = None
+
+        self.state = None
+        self.prev_state = None
+
         self.main_textbox = None
         self.doing_tutorial = None
 

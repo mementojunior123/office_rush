@@ -109,7 +109,7 @@ class Menu:
     def enter_stage2_result_screen(self, game_result : dict, screenshot : pygame.Surface):
         self.stage_data[2]['result'] = game_result
         self.stage_data[2]['screenshot'] = UiSprite(screenshot, screenshot.get_rect(topleft = (0,0)), 0, 'screenshot')
-        self.stage_data[2]['timer'] = Timer(6)
+        self.stage_data[2]['timer'] = Timer(6, core_object.global_timer.get_time)
         self.stage_data[2]['papers'] = []
         self.stage_data[2]['tasks'] = []
         self.stage_data[2]['angle_cache'] = {}

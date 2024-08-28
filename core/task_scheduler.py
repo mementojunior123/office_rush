@@ -6,14 +6,22 @@ class TaskScheduler:
         self.scheduled_tasks : dict[Task, Timer] = {}
         self.continous_tasks : dict[Task, Timer] = {}
 
-    def schedule_task(self, time : float, callback : Callable, *args, **kwargs):
+    def schedule_task(self, time : float|tuple[float, Callable[[], float], float], callback : Callable, *args, **kwargs):
         new_task = Task(callback, *args, **kwargs)
-        self.scheduled_tasks[new_task] = Timer(time)
+        t = type(time)
+        if t == int or float:
+            self.scheduled_tasks[new_task] = Timer(time)
+        else:
+            self.scheduled_tasks[new_task] = Timer(time[0], time[1], time[2])
         return new_task
     
-    def schedule_continuous_task(self, time : float, callback : Callable, *args, **kwargs):
+    def schedule_continuous_task(self, time : float|tuple[float, Callable[[], float], float], callback : Callable, *args, **kwargs):
         new_task = Task(callback, *args, **kwargs)
-        self.continous_tasks[Task(callback, *args, **kwargs)] = Timer(time)
+        t = type(time)
+        if t == int or float:
+            self.continous_tasks[new_task] = Timer(time)
+        else:
+            self.continous_tasks[new_task] = Timer(time[0], time[1], time[2])
         return new_task
     
     def update(self):

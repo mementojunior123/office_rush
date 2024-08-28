@@ -174,7 +174,7 @@ class Telephone(Sprite):
         target_midleft = pygame.Vector2(0, Telephone.PROMPT_START_HEIGHT)
         target_pos = target_midleft - self.caller_prompt.rect.midleft + self.caller_prompt.position
         new_tween = TweenModule.new_tween(self.caller_prompt, TweenModule.TweenInfo(interpolation.smoothstep, 0.4), 
-                              {'position' : target_pos, 'rect.midleft' : target_midleft})
+                              {'position' : target_pos, 'rect.midleft' : target_midleft}, time_source=core_object.game.game_timer.get_time)
         self.prompt_tweens['show_caller_textbox'] = new_tween
         opposite_tween = self.prompt_tweens.get('hide_caller_textbox', None)
         if opposite_tween:
@@ -192,7 +192,7 @@ class Telephone(Sprite):
         target_midright = pygame.Vector2(0, self.caller_prompt.rect.centery)
         target_pos = target_midright - self.caller_prompt.rect.midright + self.caller_prompt.position
         new_tween = TweenModule.new_tween(self.caller_prompt, TweenModule.TweenInfo(interpolation.smoothstep, 0.4), 
-                              {'position' : target_pos, 'rect.midright' : target_midright})
+                              {'position' : target_pos, 'rect.midright' : target_midright}, time_source=core_object.game.game_timer.get_time)
 
         self.prompt_tweens['hide_caller_textbox'] = new_tween
         opposite_tween = self.prompt_tweens.get('show_caller_textbox', None)
@@ -218,7 +218,7 @@ class Telephone(Sprite):
             target_midleft = pygame.Vector2(0, y_pos)
             target_pos = target_midleft - new_prompt.rect.midleft + new_prompt.position
             new_tween = TweenModule.new_tween(new_prompt, TweenModule.TweenInfo(interpolation.smoothstep, 0.4), 
-                                {'position' : target_pos, 'rect.midleft' : target_midleft})
+                                {'position' : target_pos, 'rect.midleft' : target_midleft}, time_source=core_object.game.game_timer.get_time)
             self.prompt_tweens[f'show_prompt{i}'] = new_tween
             opposite_tween = self.prompt_tweens.get(f'hide_prompt{i}', None)
             if opposite_tween:
@@ -236,7 +236,7 @@ class Telephone(Sprite):
         target_midright = pygame.Vector2(0, prompt.rect.centery)
         target_pos = target_midright - prompt.rect.midright + prompt.position
         new_tween = TweenModule.new_tween(prompt, TweenModule.TweenInfo(interpolation.smoothstep, 0.4), 
-                              {'position' : target_pos, 'rect.midright' : target_midright})
+                              {'position' : target_pos, 'rect.midright' : target_midright}, time_source=core_object.game.game_timer.get_time)
 
         self.prompt_tweens[f'show_prompt{prompt_index}'] = new_tween
         opposite_tween = self.prompt_tweens.get(f'hide_prompt{prompt_index}', None)
@@ -255,7 +255,7 @@ class Telephone(Sprite):
 
     @classmethod
     def handle_mouse_event(cls, event: pygame.Event):
-        if core_object.game.game_state == core_object.game.STATES.transition: return
+        if core_object.game.state == core_object.game.STATES.transition: return
         if event.type != pygame.MOUSEBUTTONDOWN: return
         press_pos : tuple[int, int] = event.pos
         for telephone in cls.active_elements:
@@ -267,7 +267,7 @@ class Telephone(Sprite):
     
     @classmethod
     def handle_key_event(cls, event : pygame.Event):
-        if core_object.game.game_state == core_object.game.STATES.transition: return
+        if core_object.game.state == core_object.game.STATES.transition: return
         if event.type != pygame.KEYDOWN: return
         conversion_dict = {pygame.K_1 : 0, pygame.K_2 : 1 ,pygame.K_3 : 2, pygame.K_4 : 3, pygame.K_5 : 4, pygame.K_6 : 5, pygame.K_7 : 6}
         index = conversion_dict.get(event.key, None)
@@ -278,7 +278,7 @@ class Telephone(Sprite):
 
     @classmethod
     def handle_sprite_clicked_event(cls, event : pygame.Event):
-        if core_object.game.game_state == core_object.game.STATES.transition: return
+        if core_object.game.state == core_object.game.STATES.transition: return
         if event.type != Sprite.SPRITE_CLICKED: return
         target : Telephone|TelephoneTopPart = event.main_hit
         if isinstance(target, (Telephone, TelephoneTopPart)):
@@ -345,12 +345,14 @@ class TelephoneTopPart(Sprite):
             self.shake_tween = None
         self.set_angle(0)
 
-        TweenModule.new_tween(self, TweenModule.TweenInfo(interpolation.cubic_ease_out, 0.1), {'pivot.origin' : new_pivot})
+        TweenModule.new_tween(self, TweenModule.TweenInfo(interpolation.cubic_ease_out, 0.1), {'pivot.origin' : new_pivot}, 
+                              time_source=core_object.game.game_timer.get_time)
     def start_shake(self, shake_speed = 1):
         self.shake_timer.set_duration(0.2 / shake_speed)
         self.is_shaking = True
         self.shake_tween = TweenModule.new_tween(self, TweenModule.TweenInfo(interpolation.cubic_ease_out, 0.1), 
-                                                 {'pivot.origin' : self.pivot.origin + pygame.Vector2(0, -20)})
+                                                 {'pivot.origin' : self.pivot.origin + pygame.Vector2(0, -20)}, 
+                                                 time_source=core_object.game.game_timer.get_time)
 
     def update(self, delta : float):
         if not self.is_shaking or not self.shake_timer.duration: 

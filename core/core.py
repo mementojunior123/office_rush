@@ -2,6 +2,7 @@ import pygame
 from time import perf_counter
 from collections import deque
 
+from utils.my_timer import Timer
 from core.event_manger import EventManger
 import core.game_module
 from core.settings import Settings
@@ -12,6 +13,8 @@ import core.menu
 from core.game_module import Game
 from core.task_scheduler import TaskScheduler
 from utils.tween_module import TweenTrack, TweenChain
+import sys
+
 class Core:
     CORE_EVENT = pygame.event.custom_type()
     START_GAME = pygame.event.custom_type() #mandatory args: day(int)
@@ -24,6 +27,8 @@ class Core:
         pygame.draw.rect(self.brightness_map, (255, 255, 255, 0), (0,0, 2000, 2000))
         self.event_manager = EventManger()
         self.event_manager.bound_actions[pygame.QUIT] = [self.close_game]
+        self.event_manager.bind(pygame.WINDOWHIDDEN, self.handle_window_event)
+        self.event_manager.bind(pygame.WINDOWSHOWN, self.handle_window_event)
         self.active_fingers : dict[int, tuple[float, float]] = {}
         self.platform : str = 'Unknown'
         self.dt : float = 1
@@ -38,6 +43,9 @@ class Core:
         self.delta_stream : deque[float] = deque([1 for _ in range(30)])
         self.dirty_display_rects : list[pygame.Rect] = []
         self.brightness_map_blend_mode = pygame.BLENDMODE_NONE
+
+        self.global_timer : Timer = Timer(-1, perf_counter, 1)
+        Timer.time_source = self.global_timer.get_time
 
     def init(self, main_display : pygame.Surface):
         self.main_display = main_display
@@ -94,6 +102,15 @@ class Core:
     
     def process_core_event():
         pass
+
+    def handle_window_event(self, event : pygame.Event):
+        if event.type == pygame.WINDOWHIDDEN or (event.type == pygame.APP_WILLENTERBACKGROUND):
+            self.set_debug_message('Window Hidden')
+            self.global_timer.pause()
+            self.game.pause()
+        elif event.type == pygame.WINDOWSHOWN:
+            self.set_debug_message('Window Shown')
+            self.global_timer.unpause()
 
     def update(self):
         self.task_scheduler.update()

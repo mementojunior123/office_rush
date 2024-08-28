@@ -2,6 +2,8 @@ import pygame
 from utils.ui_sprite import UiSprite
 from utils.base_ui_elements import BaseUiElements
 from utils.my_timer import Timer
+from typing import Callable
+
 class Ui:
     def __init__(self, elements : list[UiSprite] = None) -> None:
         if elements is None: elements = []
@@ -66,9 +68,9 @@ class Ui:
         self.temp_elements.clear()
         self.complete_list.clear()
     
-    def add_temp(self, element : UiSprite, time : float|Timer, override = False):
+    def add_temp(self, element : UiSprite, time : float|Timer, override = False, time_source : Callable[[], float]|None = None, time_scale : float = 1):
         if element not in self.temp_elements or override == True:
-            timer = time if type(time) == Timer else Timer(time)
+            timer = time if type(time) == Timer else Timer(time, time_source, time_scale)
             self.temp_elements[element] = timer
             self.complete_list.append(element)
     

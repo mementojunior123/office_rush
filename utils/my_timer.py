@@ -1,10 +1,19 @@
 from time import perf_counter
+from typing import Callable
 
 class Timer:
-    def __init__(self, treshold) -> None:
+    
+    @staticmethod
+    def time_source() -> float:
+        return perf_counter()
+    
+    def __init__(self, treshold : float = -1, time_source : Callable[[], float]|None = None, scale_factor : float = 1.0) -> None:
         self.duration = treshold
-        self.start_time = perf_counter()
-        self.init_time = perf_counter()
+        self.time_source : Callable[[], float]
+        if time_source: self.time_source = time_source
+        self.scale_factor : float = scale_factor
+        self.start_time = self.time_source()
+        self.init_time = self.time_source()
         
         
         self.paused = False
@@ -14,10 +23,9 @@ class Timer:
     @classmethod
     def new(cls, duration = -1):
         return cls(duration)
-
-
+    
     def restart(self):
-        self.start_time = perf_counter()
+        self.start_time = self.time_source()
         
         self.paused = False
         self.pause_start = None
@@ -29,12 +37,12 @@ class Timer:
     
     def pause(self):
         if self.paused: return
-        self.pause_start = perf_counter()
+        self.pause_start = self.time_source()
         self.paused = True
     
     def unpause(self):
         if not self.paused: return
-        self.pause_duration += perf_counter() - self.pause_start
+        self.pause_duration += self.time_source() - self.pause_start
         self.paused = False
         self.pause_start = None
     
@@ -43,14 +51,14 @@ class Timer:
         else: self.pause()
     
     def get_time(self):
-        return perf_counter() - self.start_time - self.get_pause_time()
+        return (self.time_source() - self.start_time - self.get_pause_time()) * self.scale_factor
     
     def get_real_time(self):
-        return perf_counter() - self.start_time
+        return (self.time_source() - self.start_time) * self.scale_factor
     
     def get_pause_time(self):
         if self.paused == False: return self.pause_duration
-        else: return self.pause_duration + perf_counter() - self.pause_start
+        else: return (self.pause_duration + self.time_source() - self.pause_start) * self.scale_factor
     
     def get_time_left(self):
         return self.duration - self.get_time()
