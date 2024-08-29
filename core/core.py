@@ -27,8 +27,11 @@ class Core:
         pygame.draw.rect(self.brightness_map, (255, 255, 255, 0), (0,0, 2000, 2000))
         self.event_manager = EventManger()
         self.event_manager.bound_actions[pygame.QUIT] = [self.close_game]
+
         self.event_manager.bind(pygame.WINDOWHIDDEN, self.handle_window_event)
         self.event_manager.bind(pygame.WINDOWSHOWN, self.handle_window_event)
+        self.event_manager.bind(pygame.APP_WILLENTERBACKGROUND, self.handle_window_event)
+
         self.active_fingers : dict[int, tuple[float, float]] = {}
         self.platform : str = 'Unknown'
         self.dt : float = 1
@@ -104,7 +107,7 @@ class Core:
         pass
 
     def handle_window_event(self, event : pygame.Event):
-        if event.type == pygame.WINDOWHIDDEN or (event.type == pygame.APP_WILLENTERBACKGROUND):
+        if (event.type == pygame.WINDOWHIDDEN) or (event.type == pygame.APP_WILLENTERBACKGROUND):
             self.set_debug_message('Window Hidden')
             self.global_timer.pause()
             self.game.pause()
