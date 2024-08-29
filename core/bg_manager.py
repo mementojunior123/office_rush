@@ -7,7 +7,7 @@ class SoundTypes:
 
 class BgManager:
     def __init__(self) -> None:
-        self.current : dict[pygame.mixer.Channel, TrackInfo] = []
+        self.current : dict[pygame.mixer.Channel, TrackInfo] = {}
         self.global_volume = 1
         self.sound_types = SoundTypes
 

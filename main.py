@@ -122,7 +122,7 @@ def end_game(event : pygame.Event = None, goto_result_screen = False):
     core.game.cleanup()
     core.game.disconnect_tasks()
     core.main_ui.clear_all()
-    core_object.bg_manager.stop_all()
+    core_object.bg_manager.stop_all_music()
     core_object.event_manager.unbind(pygame.MOUSEBUTTONDOWN, Sprite.handle_mouse_event)
     core_object.event_manager.unbind(pygame.FINGERDOWN, Sprite.handle_touch_event)
     core.event_manager.unbind(pygame.KEYDOWN, detect_game_over)
