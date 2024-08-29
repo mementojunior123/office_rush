@@ -230,8 +230,8 @@ class Game:
     
     def pause(self):
         if not self.active: return
-        if self.state == self.STATES.paused: return
         self.game_timer.pause()
+        if self.state == self.STATES.paused: return 
         window_size = core_object.main_display.get_size()
         pause_ui1 = BrightnessOverlay(-60, pygame.Rect(0,0, *window_size), 0, 'pause_overlay', zindex=999)
         pause_ui2 = TextSprite(pygame.Vector2(window_size[0] // 2, window_size[1] // 2), 'center', 0, 'Paused', 'pause_text', None, None, 1000,
@@ -457,7 +457,7 @@ class Game:
         info2 = TInfo(interpolation.quad_ease_in, 0.4)
         
         on_screen_time = 1
-        TweenModule.new_tween(error_sprite, info1, goal1, time_source=self.game_timer)
+        TweenModule.new_tween(error_sprite, info1, goal1, time_source=self.game_timer.get_time)
         core_object.task_scheduler.schedule_task(0.4 + on_screen_time, TweenModule.new_tween, error_sprite, info2, goal2, 
                                                  True, False, True, self.game_timer.get_time)
     

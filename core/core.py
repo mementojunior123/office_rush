@@ -13,7 +13,12 @@ import core.menu
 from core.game_module import Game
 from core.task_scheduler import TaskScheduler
 from utils.tween_module import TweenTrack, TweenChain
+
 import sys
+import platform
+from typing import Any
+
+WEBPLATFORM = 'emscripten'
 
 class Core:
     CORE_EVENT = pygame.event.custom_type()
@@ -22,15 +27,13 @@ class Core:
     def __init__(self) -> None:
         self.FPS = 60
         self.PERFORMANCE_MODE = False
+        self.WEBPLATFORM = 'emscripten'
+        self.CURRENT_PLATFORM = sys.platform
         self.main_display : pygame.Surface
         self.brightness_map = pygame.Surface((2000, 2000), pygame.SRCALPHA)
         pygame.draw.rect(self.brightness_map, (255, 255, 255, 0), (0,0, 2000, 2000))
         self.event_manager = EventManger()
-        self.event_manager.bound_actions[pygame.QUIT] = [self.close_game]
-
-        self.event_manager.bind(pygame.WINDOWHIDDEN, self.handle_window_event)
-        self.event_manager.bind(pygame.WINDOWSHOWN, self.handle_window_event)
-        self.event_manager.bind(pygame.APP_WILLENTERBACKGROUND, self.handle_window_event)
+        self.make_connections()
 
         self.active_fingers : dict[int, tuple[float, float]] = {}
         self.platform : str = 'Unknown'
@@ -49,6 +52,16 @@ class Core:
 
         self.global_timer : Timer = Timer(-1, perf_counter, 1)
         Timer.time_source = self.global_timer.get_time
+
+        self.window_bools : dict = {'Shown' : True, 'input_focused' : True}
+
+    def is_web(self) -> bool:
+        return self.CURRENT_PLATFORM == WEBPLATFORM
+    
+    def setup_web(self):
+        if not self.is_web(): return
+        platform.EventTarget.addEventListener(platform.window, "blur", self.stop_things)
+        platform.EventTarget.addEventListener(platform.window, "focus", self.continue_things)
 
     def init(self, main_display : pygame.Surface):
         self.main_display = main_display
@@ -80,6 +93,14 @@ class Core:
             pygame.draw.rect(self.brightness_map, (abs_brightness, abs_brightness, abs_brightness), (0,0, 2000, 2000))
             self.brightness_map_blend_mode = pygame.BLEND_RGB_SUB
     
+    def make_connections(self):
+        self.event_manager.bound_actions[pygame.QUIT] = [self.close_game]
+
+        self.event_manager.bind(pygame.WINDOWHIDDEN, self.handle_window_event)
+        self.event_manager.bind(pygame.WINDOWSHOWN, self.handle_window_event)
+        self.event_manager.bind(pygame.WINDOWFOCUSGAINED, self.handle_window_event)
+        self.event_manager.bind(pygame.WINDOWFOCUSLOST, self.handle_window_event)
+    
     def process_touch_event(self, event : pygame.Event):
         if event.type == pygame.FINGERDOWN:
             x = event.x * self.main_display.get_width()
@@ -107,13 +128,46 @@ class Core:
         pass
 
     def handle_window_event(self, event : pygame.Event):
-        if (event.type == pygame.WINDOWHIDDEN) or (event.type == pygame.APP_WILLENTERBACKGROUND):
+        platform : str = sys.platform[0:]
+        if platform != 'emscripten': return
+        return
+        if event.type == pygame.WINDOWFOCUSLOST:
+            self.window_bools['input_focused'] = False
+            self.set_debug_message('Window Unfocused')
+            self.global_timer.pause()
+            self.game.pause()
+
+        elif event.type == pygame.WINDOWHIDDEN:
+            self.window_bools['Shown'] = False
             self.set_debug_message('Window Hidden')
             self.global_timer.pause()
             self.game.pause()
+
         elif event.type == pygame.WINDOWSHOWN:
+            self.window_bools['Shown'] = True
+            return
             self.set_debug_message('Window Shown')
             self.global_timer.unpause()
+        
+        elif event.type == pygame.WINDOWFOCUSGAINED:
+            self.window_bools['input_focused'] = True
+            self.set_debug_message('Window Focused')
+            self.continue_things()
+
+    def check_window_focus(self):
+        platform : str = sys.platform[0:]
+        if platform != 'emscripten': return True
+        result = pygame.display.get_active()
+        self.set_debug_message('Window Focused') if result else self.set_debug_message('Window Unfocused')
+        return pygame.key.get_focused()
+    
+    def stop_things(self, event : Any|None = None):
+        self.global_timer.pause()
+        self.game.pause()
+    
+    def continue_things(self, event : Any|None = None):
+        self.global_timer.unpause() 
+
 
     def update(self):
         self.task_scheduler.update()

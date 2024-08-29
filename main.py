@@ -1,5 +1,7 @@
 import pygame
 import asyncio
+
+import sys
 pygame.init()
 
 GAME_ICON = pygame.image.load('icon.png')
@@ -19,7 +21,8 @@ from random import shuffle
 core = core_object
 core.init(window)
 core.FPS = 120
-
+if core.is_web(): core.setup_web()
+else: print("This is not the web version.")
 pygame.display.set_caption('Office Rush')
 
 from utils.base_ui_elements import BaseUiElements, UiSprite
@@ -156,6 +159,8 @@ async def main():
         core.update_dt(60)
         for event in pygame.event.get():
             core.event_manager.process_event(event)
+        #if core.check_window_focus() == False:
+        #    core.stop_things()
         
         if core.game.active == False:
 
@@ -163,21 +168,25 @@ async def main():
             core.menu.update(core.dt)
             core.menu.render(window)
         else:
-        
-            window.fill((94,129,162))
+            #if core.check_window_focus() == False:
+            #    core.stop_things()
             if core.game.state != core.game.STATES.paused:
                 Sprite.update_all_sprites(core.dt)
                 Sprite.update_all_registered_classes(core.dt)
                 core.game.main_logic(core.dt)
+
+            window.fill((94,129,162))    
             Sprite.draw_all_sprites(window)
             core.main_ui.update()
             core.main_ui.render(window)
+
         core.update()
         if cycle_timer.isover(): 
             fps_sprite.text = f'FPS : {core.get_fps():0.0f}'
             cycle_timer.restart()
         if core.settings.info['Brightness'] != 0:
             window.blit(core.brightness_map, (0,0), special_flags=core.brightness_map_blend_mode)
+            
         pygame.display.update()
         core.frame_counter += 1
         clock.tick(core.FPS)
