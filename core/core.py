@@ -179,6 +179,7 @@ class Core:
         TweenTrack.update_all()
         TweenChain.update_all()
         self.update_delta_stream()
+        self.bg_manager.update()
     
     def update_delta_stream(self):
         target_lentgh = round(30 / self.dt)
