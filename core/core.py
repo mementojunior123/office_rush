@@ -58,10 +58,14 @@ class Core:
     def is_web(self) -> bool:
         return self.CURRENT_PLATFORM == WEBPLATFORM
     
-    def setup_web(self):
+    def setup_web(self, method : int = 1):
         if not self.is_web(): return
-        platform.EventTarget.addEventListener(platform.window, "blur", self.stop_things)
-        platform.EventTarget.addEventListener(platform.window, "focus", self.continue_things)
+        if method == 1:
+            platform.window.onfocus = self.continue_things
+            platform.window.onblur = self.stop_things
+        else:
+            platform.EventTarget.addEventListener(platform.window, "blur", self.stop_things)
+            platform.EventTarget.addEventListener(platform.window, "focus", self.continue_things)
 
     def init(self, main_display : pygame.Surface):
         self.main_display = main_display
@@ -134,8 +138,7 @@ class Core:
         if event.type == pygame.WINDOWFOCUSLOST:
             self.window_bools['input_focused'] = False
             self.set_debug_message('Window Unfocused')
-            self.global_timer.pause()
-            self.game.pause()
+            self.stop_things()
 
         elif event.type == pygame.WINDOWHIDDEN:
             self.window_bools['Shown'] = False
@@ -164,9 +167,11 @@ class Core:
     def stop_things(self, event : Any|None = None):
         self.global_timer.pause()
         self.game.pause()
+        if event is not None: self.window_bools['input_focused'] = False 
     
     def continue_things(self, event : Any|None = None):
         self.global_timer.unpause() 
+        if event is not None: self.window_bools['input_focused'] = True 
 
 
     def update(self):

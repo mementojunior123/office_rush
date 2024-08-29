@@ -21,7 +21,7 @@ from random import shuffle
 core = core_object
 core.init(window)
 core.FPS = 120
-if core.is_web(): core.setup_web()
+if core.is_web(): core.setup_web(1)
 else: print("This is not the web version.")
 pygame.display.set_caption('Office Rush')
 
